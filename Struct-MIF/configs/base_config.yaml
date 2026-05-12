@@ -1,0 +1,40 @@
+# ==============================================================================
+# 基础配置 (Base Configuration)
+# 作用: 定义全局通用的路径、随机种子和模型架构默认值
+# ==============================================================================
+
+# --- 环境设置 ---
+seed: 42
+device: "cuda"          # "cuda" or "cpu"
+num_workers: 4          # DataLoader 线程数 (建议设置为 CPU 核心数的一半)
+pin_memory: true        # 加速数据传输
+
+# --- 路径设置 (推荐使用绝对路径或基于项目根目录的相对路径) ---
+paths:
+  # 数据相关
+  raw_pdb_dir: "./data/raw_pdb"
+  processed_dir: "./data/processed_graphs"
+  foldseek_bin: "./data/bin/foldseek"
+
+  # 模型权重
+  esm_model_name: "./pretrained_models/esm2_t33_650M_UR50D" # 如果已下载到本地，填本地路径 ./pretrained_models/esm2...
+
+  # 输出
+  output_root: "./experiments"
+
+# --- 模型架构默认参数 (Struct-MIF) ---
+model:
+  max_len: 1024           # 序列最大长度 (超过此长度将被截断，防止 OOM)
+
+  # 语义塔 (ESM)
+  esm_hidden_dim: 1280    # ESM-2-650M 的输出维度
+
+  # 先验塔 (3Di)
+  struct_vocab_size: 21   # 20 种结构字母 + 1 padding
+  struct_embed_dim: 128   # 3Di Embedding 维度
+
+  # 几何引擎 (GVP)
+  gvp_node_in_dim: 1408   # = esm_hidden_dim + struct_embed_dim
+  gvp_node_out_dim: 128   # GVP 隐藏层大小
+  gvp_layers: 6           # GVP 层数深度
+  dropout: 0.1

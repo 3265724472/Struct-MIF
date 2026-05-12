@@ -1,0 +1,35 @@
+# ==============================================================================
+# Zero-Shot 推理配置
+# 任务: DMS 突变打分 (Spearman Correlation)
+# ==============================================================================
+
+# --- 继承基础配置 ---
+base_config: "./configs/base_config.yaml"
+
+# --- 模型加载 ---
+# 指定要使用的预训练权重路径
+checkpoint_path: "./experiments/struct_mif_cath_s40/best_checkpoint.pt"
+
+# --- 推理参数 ---
+inference:
+  batch_size: 32          # 推理时梯度不回传，Batch 可以比训练大一倍
+
+  # 评分策略
+  strategy: "masked_marginal"  # 目前最有效的 Zero-shot 策略 (LLR)
+
+  # 性能优化
+  use_fp16: true          # 使用半精度推理 (加速且省显存)
+
+# --- 输入输出 ---
+# 这里的路径通常在命令行覆盖，但可以写默认值方便调试
+input:
+  pdb_file: "./data/benchmarks/GFP.pdb"
+  csv_file: "./data/benchmarks/GFP_dms.csv"
+
+  # CSV 列名映射
+  mutation_col: "mutation"      # 突变列名，如 "A123C"
+  score_col: "DMS_score"        # 真实分数列名 (可选，用于计算相关性)
+
+output:
+  save_dir: "./experiments/inference_results"
+  save_prefix: "GFP_prediction"

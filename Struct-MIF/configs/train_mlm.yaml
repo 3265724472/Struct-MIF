@@ -1,0 +1,46 @@
+# ==============================================================================
+# 预训练配置 (Pre-training Configuration)
+# 任务: Masked Language Modeling (MLM)
+# 目标: 训练 GVP 和 Adapter 理解结构与序列的关系
+# ==============================================================================
+
+# --- 继承基础配置 ---
+base_config: "./configs/base_config.yaml"
+
+# --- 数据集 ---
+data:
+  train_path: "./data/processed_graphs/train"
+  val_path: "./data/processed_graphs/val"
+  mlm_probability: 0.15   # Mask 比例 (标准 BERT/ESM 设置)
+
+# --- 训练超参数 (针对 RTX 4090 优化) ---
+training:
+  experiment_name: "struct_mif_cath_s40"
+  epochs: 50
+
+  # 显存优化策略:
+  # 4090 24GB 显存，对于 max_len=1024:
+  # - batch_size: 16 (比较稳健)
+  # - accum_steps: 2 => Effective Batch Size = 32
+  batch_size: 16
+  accum_steps: 2
+
+  # 优化器 (AdamW)
+  lr: 0.0001              # 1e-4, 适合 Transformer/GNN 类模型
+  weight_decay: 0.01
+
+  # 学习率调度
+  scheduler: "cosine"     # Cosine Annealing
+  warmup_steps: 1000      # 预热步数
+
+  # 梯度裁剪 (防止梯度爆炸)
+  grad_clip_norm: 1.0
+
+  # 保存策略
+  save_freq: 5            # 每 5 个 Epoch 保存一次 checkpoint
+  keep_checkpoints: 3     # 只保留最近 3 个 checkpoint (节省磁盘)
+
+# --- 监控 ---
+logging:
+  use_tensorboard: true
+  log_interval: 50        # 每 50 个 step 打印一次 log

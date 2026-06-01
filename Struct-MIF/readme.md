@@ -217,7 +217,7 @@ This is the primary full-parameter model with the complete multi-modal architect
 
 | Model                 | Description                            |                        Download Link                         |
 | :-------------------- | :------------------------------------- | :----------------------------------------------------------: |
-| **Struct-MIF (Full)** | The complete multi-modal architecture. | [checkpoint_best_model.pt](https://1drv.ms/u/c/E768FE104E832A19/AVFo5unaxhBEndhIWCGVul0?e=CSPaI7) |
+| **Struct-MIF (Full)** | The complete multi-modal architecture. | [checkpoint_best_model.pt](https://onedrive.live.com/?listurl=%2Fpersonal%2Fe768fe104e832a19%2FDocuments&viewid=c6b72bfb%2D4712%2D405c%2Da589%2D25468a113b15&id=%2Fpersonal%2Fe768fe104e832a19%2FDocuments%2FA%20Student%2F%E5%BC%A0%E9%94%A6%2F%E5%B7%A5%E4%BD%9C%E4%B8%80%2FStruct%2DMIF%2Fexperiments%2Fbest%5Fmodel%2Fcheckpoint%5Fthe%5Fbest%5Fmodel%2Ept&parent=%2Fpersonal%2Fe768fe104e832a19%2FDocuments%2FA%20Student%2F%E5%BC%A0%E9%94%A6%2F%E5%B7%A5%E4%BD%9C%E4%B8%80%2FStruct%2DMIF%2Fexperiments%2Fbest%5Fmodel) |
 
 ### 2. Ablation Study Models
 

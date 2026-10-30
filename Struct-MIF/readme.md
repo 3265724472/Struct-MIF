@@ -1,209 +1,209 @@
-## Introduction
+# Struct-MIF
 
-In this study, we proposed a unified multi-modal framework, Struct-MIF, for zero-shot protein mutation effect prediction. Unlike previous sequence-only or structure-only methods, Struct-MIF explicitly integrates evolutionary semantics, discrete structural priors, and continuous geometric constraints to efficiently learn the sequence-structure-function mapping space. This architecture can directly perform zero-shot inferences without the need for expensive downstream fine-tuning.
+**Structure-aware Masked Inverse Folding: Integrating Evolutionary Semantics and Structural Priors for Zero-Shot Mutation Effect Prediction**
 
-![图片 1](figures/Figure1.svg)
+Official codebase for *Struct-MIF*, which combines a frozen protein language model, a discrete structural alphabet, and an equivariant geometric encoder for zero-shot mutation effect prediction using wild-type structures alone.
+
+---
+
+## Overview
+
+Struct-MIF is a three-stream architecture that fuses complementary sources of protein information:
+
+| Stream | Encoder | Role |
+| --- | --- | --- |
+| Semantic | Frozen ESM-2 (650M) | Long-range evolutionary context |
+| Prior | Foldseek 3Di embedding | Discrete local backbone conformation |
+| Geometric | 6-layer GVP-GNN | Continuous SE(3)-equivariant geometry |
+
+The three streams are concatenated into a 1408-dimensional scalar input and refined by SE(3)-equivariant message passing. Mutations are scored with the masked log-likelihood ratio (LLR), requiring only the wild-type structure and no mutant structure modelling.
+
+Training uses masked language modelling on a non-redundant subset of CATH v4.3.0 (30,948 domains, 40% sequence identity cutoff, maximum length 1024 residues) for 150 epochs. Only the non-ESM parameters are trainable (~9.0M), so the full pipeline fits on a single consumer GPU.
+
+![Architecture](figures/Figure1.svg)
+
+---
 
 ## Results
 
-### Downloads
+### Benchmarks
 
-- ProteinGym: The pdb files folded by ColabFold 1.5 can be downloaded from https://huggingface.co/datasets/tyang816/ProteinGym_v1/resolve/main/ProteinGym_v1_AlphaFold2_PDB.zip
-- **DTM** and **DDG** dataset can be found in [`data/DTM`](https://github.com/tyang816/ProtSSN/tree/master/data/DTM) and [`data/DDG`](https://github.com/tyang816/ProtSSN/tree/master/data/DDG)
+| Benchmark | Content |
+| --- | --- |
+| ProteinGym v1.0 | 217 substitution assays (activity, binding, expression, organismal fitness, stability) |
+| ΔTm | 66 assays / 2,520 variants, curated from ProThermDB |
+| ΔΔG | 36 assays / 829 variants, curated from DDMut |
 
-### Paper Results
+The ΔTm and ΔΔG splits follow the ProtSSN study (Tan et al., *eLife* 2025), from which the baseline values below are likewise adopted. All models are scored with Spearman's rank correlation.
 
-We selected three of the most authoritative benchmark datasets in the field of protein engineering for evaluation: ProteinGym, DTm, and DDG. We compared Struct-MIF with a comprehensive set of pure sequence models, pure structure models, and sequence-structure fusion models. It is important to note that the performance metrics for all baseline models reported in Table 2 were directly adopted from the robust benchmark evaluations conducted by Tan et al. in the ProtSSN study. Spearman's rank correlation coefficient was utilized as the standard evaluation metric.
+### Thermodynamic stability
 
-| ProteinGym              |              |             |                |                |               |                    |
-| ----------------------- | ------------ | ----------- | -------------- | -------------- | ------------- | ------------------ |
-| **Model**               | **Activity** | **Binding** | **Expression** | **Organismal** | **Stability** | **Avg.  Spearman** |
-| **ProtSSN  (ensemble)** | 0.466        | 0.366       | 0.449          | 0.396          | 0.568         | 0.449              |
-| **S2F**                 | 0.459        | 0.391       | 0.456          | 0.404          | 0.568         | 0.456              |
-| **SaProt  (650M)**      | 0.458        | 0.378       | **0.488**      | 0.366          | 0.592         | 0.457              |
-| **ESM3  open (1.4B)**   | 0.43         | 0.4         | 0.47           | 0.389          | **0.641**     | 0.466              |
-| **ProSST  (K=128)**     | 0.417        | **0.44**    | 0.473          | 0.387          | 0.628         | 0.469              |
-| **S3F**                 | **0.468**    | 0.404       | 0.472          | **0.413**      | 0.594         | 0.47               |
-| **ProSST  (K=512)**     | 0.423        | 0.431       | 0.479          | 0.394          | 0.629         | 0.471              |
-| **Struct-MIF**          | 0.452        | 0.373       | 0.460          | 0.408          | 0.610         | **0.481**          |
+| Model | Version | ΔTm | ΔΔG |
+| --- | --- | ---: | ---: |
+| ESM2 | t12 | 0.214 | 0.216 |
+| | t30 | 0.288 | 0.317 |
+| | t33 | 0.330 | 0.392 |
+| | t36 | 0.327 | 0.351 |
+| | t48 | 0.311 | 0.252 |
+| CARP | – | 0.288 | 0.333 |
+| ProtTrans | bert | 0.268 | 0.313 |
+| | bert_bfd | 0.217 | 0.293 |
+| | t5_xl_uniref50 | 0.310 | 0.365 |
+| | t5_xl_bfd | 0.239 | 0.334 |
+| ESM-IF1 | – | 0.395 | 0.409 |
+| MIF-ST | – | 0.400 | 0.406 |
+| SaProt | masked | 0.382 | – |
+| | unmasked | 0.376 | 0.359 |
+| ProtSSN | k20_h512 | 0.419 | 0.442 |
+| | Ensemble | 0.425 | 0.440 |
+| **Struct-MIF** | – | **0.455** | **0.492** |
 
-| **Model**      | **Version**    | **DTm**   | **DDG**   |
-| -------------- | -------------- | --------- | --------- |
-| **ESM2**       | t12            | 35        | 0.214     |
-|                | t30            | 150       | 0.288     |
-|                | t33            | 650       | 0.330     |
-|                | t36            | 3000      | 0.327     |
-|                | t48            | 15,000    | 0.311     |
-| **CARP**       | -              | 0.288     | 0.333     |
-| **ProtTrans**  | bert           | 0.268     | 0.313     |
-|                | bert_bfd       | 0.217     | 0.293     |
-|                | t5_xl_uniref50 | 0.310     | 0.365     |
-|                | t5_xl_bfd      | 0.239     | 0.334     |
-| **ESM-if1**    | -              | 0.395     | 0.409     |
-| **MIF-ST**     | -              | 0.400     | 0.406     |
-| **SaProt**     | masked         | 0.382     | -         |
-|                | unmasked       | 0.376     | 0.359     |
-| **ProtSSN**    | k20_h512       | 0.419     | 0.442     |
-|                | Ensemble       | 0.425     | 0.440     |
-| **Struct-MIF** | -              | **0.455** | **0.492** |
+Struct-MIF improves over the strongest single-model baseline (ProtSSN k20_h512) by 8.6% on ΔTm and 11.3% on ΔΔG, and over the ProtSSN ensemble by 7.1% and 11.8%.
 
-Beyond evolutionary fitness, accurately distinguishing pathogenic variants from benign ones in the human genome is crucial for clinical translation. We selected three clinically highly relevant tumor suppressor and metabolic genes (PTEN, TP53, and MSH2) to evaluate the model's classification performance on the ClinVar dataset using the AUC-ROC metric.
+### Pre-training cost
 
-![Figure3](figures/Figure3.svg)
+| Model | ProteinGym | Pre-training data | Hardware | Time | GPU-days |
+| --- | ---: | --- | --- | --- | ---: |
+| S3F | 0.483 | CATH (+surface) | 4×A100 | – | – |
+| **Struct-MIF** | **0.481** | **CATH (30,948)** | **1×RTX 4090** | **~12 h** | **~0.5** |
+| ProSST (K=512) | 0.481 | UniRef50 + AF2 | 8×A800 | ~30 d | ~240 |
+| ProSST (K=128) | 0.477 | UniRef50 + AF2 | 8×A800 | ~30 d | ~240 |
+| S2F | 0.468 | CATH | 4×A100 | – | – |
+| SaProt (650M) | 0.464 | AF2-UniRef50 | 8×GPU | – | – |
 
+Hardware configurations are taken from each model's official repository. Dashes indicate values not reported in the released materials. Because these figures derive from codebases built for different corpora, length limits, and objectives, they indicate the resource tier required rather than a controlled efficiency benchmark.
 
+### Clinical variants
 
-## Requirement
+On ClinVar pathogenic/benign annotations for PTEN, TP53, and MSH2, Struct-MIF reaches AUC-ROC of 1.00, 1.00, and 0.83. AUC reflects ranking discrimination and is not directly comparable to the accuracy metrics reported for functional assays.
 
-### Conda Enviroment
+![ClinVar](figures/Figure3.svg)
 
-Please make sure you have installed **[Anaconda3](https://www.anaconda.com/download)** or **[Miniconda3](https://docs.conda.io/projects/miniconda/en/latest/)**.
+---
 
-**Enviroment.**
+## Installation
 
-```
+Conda is recommended:
+
+```bash
 conda env create -f environment.yaml
 conda activate struct_mif
 ```
 
+Preprocessing additionally requires the **Foldseek** binary. Place it at `data/bin/foldseek` or ensure `foldseek` is on your `PATH`.
+
 ### Hardware
 
-While Table 2. reflects our specific development and pre-training environment, Struct-MIF is designed with parameter efficiency in mind. For researchers aiming to deploy or further fine-tune this architecture, we recommend the following minimum hardware specifications:
+- **Inference** — ≥8 GB VRAM is sufficient (e.g. RTX 3060/4060)
+- **Pre-training** — ≥24 GB VRAM recommended (RTX 3090/4090, A5000, A100); 64 GB system RAM or more avoids I/O bottlenecks with multi-worker loading
 
-For Zero-Shot Inference (Variant Scoring): The model is highly computationally accessible during the inference phase. Evaluating mutational fitness landscapes on target wild-type proteins requires a minimal memory footprint. A standard consumer-grade GPU with at least 8 GB of VRAM (e.g., NVIDIA RTX 3060/4060 or equivalent) is entirely sufficient to run the inference scripts efficiently.
+Reference configuration: Intel i9-14900K, 1× RTX 4090 (24 GB), 128 GB RAM.
 
-For Multi-modal Pre-training: Due to the memory requirements of loading the 650M-parameter ESM-2 model alongside dynamic 3D k-NN graph batching, pre-training demands higher memory capacity. To maintain a functional batch size (e.g., 16 with automatic mixed precision) without triggering CUDA Out-of-Memory (OOM) errors, we strongly recommend an NVIDIA GPU with a minimum of 24 GB VRAM (e.g., RTX 3090/4090, RTX A5000, or A100). Furthermore, system RAM should ideally be 64 GB or higher (128 GB recommended) to prevent I/O bottlenecks during concurrent multi-worker data loading of massive PDB datasets.
+### Pre-training hyperparameters
 
-| **hardware**        | **type**                            | **numbers** |
-| ------------------- | ----------------------------------- | ----------- |
-| CPU                 | Intel(R) Core(TM) i9-14900K         | 1           |
-| GPU                 | NVIDIA GeForce RTX 4090 (24GB VRAM) | 1           |
-| System Memory (RAM) | 128G                                | 1           |
+| Parameter | Value |
+| --- | --- |
+| Batch size | 16 |
+| Gradient accumulation steps | 2 |
+| Learning rate | 1e-4 |
+| Epochs | 150 |
+| Optimizer | AdamW |
+| Dataloader workers | 8 |
 
-### Hyperparameters for multi-modal pre-training
-
-| **parameter**               | **values** |
-| --------------------------- | ---------- |
-| Batch size                  | 16         |
-| Gradient accumulation steps | 2          |
-| Learning rate               | 1e-4       |
-| Epochs                      | 158        |
-| Optimizer                   | AdamW      |
-| Number of workers           | 8          |
-
-
+---
 
 ## Quickstart
 
-#### 1. Data Preprocessing
+### 1. Data preprocessing
 
-Extract 3D coordinates and 3Di structural tokens from PDB files to build KNN graphs:
+Extract 3D backbone coordinates and Foldseek 3Di tokens from PDB files and build k-NN graphs:
 
-```
+```bash
 PYTHONPATH=. nohup python scripts/1_preprocess_graphs.py \
-    --input_dir /mnt/data/jzhang/data/alphafold/v6_extracted \
+    --input_dir /path/to/your/pdb_files \
     --output_dir data/processed_graphs \
+    --foldseek_bin ./data/bin/foldseek \
+    --k_neighbors 30 \
     --num_workers 16 \
     > preprocess_run.log 2>&1 &
-
-tail -f preprocess_run.log
 ```
 
-#### 2. Pre-training (Masked Language Modeling)
+> Set `--input_dir` to the directory holding your CATH domains or any other PDB collection.
 
-Pre-train the Struct-MIF model using the processed graphs. You can easily adjust the model capacity and graph topology through command-line arguments:
+### 2. Pre-training
 
-```
+```bash
 PYTHONPATH=. nohup python scripts/2_pretrain.py \
     --train_path ./data/processed_graphs \
     --esm_model_path ./pretrained_models/esm2_t33_650M_UR50D \
-    --output_dir experiments/test1 \
-    --epochs 100 \
+    --output_dir experiments/struct_mif \
+    --epochs 150 \
     --gvp_layers 6 \
+    --hidden_dim 128 \
+    --top_k 30 \
+    --gnn_type gvp \
     --batch_size 16 \
     --accum_steps 2 \
     --lr 1e-4 \
     --num_workers 8 \
-    --gnn_type gvp \
-    --hidden_dim 128 \
-    --top_k 30 \
-    > experiments/test1/train.log 2>&1 &
-    
-    
-tail -f experiments/test1/train.log
+    > experiments/struct_mif/train.log 2>&1 &
 ```
 
-#### 3. Zero-shot Benchmarking
+Additional flags: `--ablation {none,no_3di}` disables the 3Di stream, `--gnn_type {gvp,egnn,gcn,gat}` swaps the geometric encoder, `--resume <path>` continues from a checkpoint.
 
-Evaluate the pre-trained model on downstream tasks without any fine-tuning.
+### 3. Zero-shot evaluation
 
-**For DTm / DDG Thermodynamics Benchmarks:**
+**Thermodynamic stability (ΔTm / ΔΔG):**
 
-```
+```bash
 PYTHONPATH=. python scripts/4_benchmark_dtm.py \
     --dtm_root data/DDG/DATASET \
-    --checkpoint experiments/test1/checkpoint_epoch_100.pt \
+    --checkpoint experiments/struct_mif/checkpoint_epoch_150.pt \
     --esm_model ./pretrained_models/esm2_t33_650M_UR50D \
+    --foldseek_bin ./data/bin/foldseek \
     --gvp_layers 6 \
-    --output_csv experiments/test1/ddg_results_summary.csv \
-    --foldseek_bin data/bin/foldseek  \
     --hidden_dim 128 \
     --top_k 30 \
-    --gnn_type gvp
+    --gnn_type gvp \
+    --output_csv experiments/struct_mif/ddg_results.csv
 ```
 
-**For ProteinGym v1 Benchmark:**
+**ProteinGym:**
 
-```
+```bash
 PYTHONPATH=. python scripts/5_benchmark_proteingym.py \
     --json_file protssn_experiment_plan.json \
-    --checkpoint experiments/test1/checkpoint_epoch_100.pt \
-    --output_csv experiments/test1/proteingym_results.csv \
+    --checkpoint experiments/struct_mif/checkpoint_epoch_150.pt \
     --esm_model ./pretrained_models/esm2_t33_650M_UR50D \
-    --foldseek_bin data/bin/foldseek \
+    --foldseek_bin ./data/bin/foldseek \
     --gvp_layers 6 \
     --hidden_dim 128 \
     --top_k 30 \
-    --gnn_type gvp
+    --gnn_type gvp \
+    --output_csv experiments/struct_mif/proteingym_results.csv
 ```
 
-## Project Structure
+### 4. Utilities
 
-```
-Struct-MIF/
-├── configs/                        # Configuration files directory
-│   ├── base_config.yaml            # Base model and training configurations
-│   ├── inference_zeroshot.yaml     # Zero-shot inference configurations
-│   └── train_mlm.yaml              # Specific configurations for MLM pre-training
-├── data/                           # Data directory (raw PDBs, processed graphs, and benchmarks)
-├── experiments/                    # Experiment outputs (model checkpoints and training logs)
-├── scripts/                        # Core execution scripts
-│   ├── 0_setup_env.sh              # Environment setup script
-│   ├── 1_preprocess_graphs.py      # Data preprocessing (PDB -> Graph structures & 3Di      																			features)
-│   ├── 2_pretrain.py               # Main model pre-training script (MLM)
-│   ├── 3_zero_shot_score.py        # Zero-shot scoring script for single variants
-│   ├── 4_benchmark_dtm.py          # DTm/DDG thermodynamics benchmarking script
-│   ├── 5_benchmark_proteingym.py   # ProteinGym v1 comprehensive benchmarking script
-├── src/                            # Core source code modules
-│   ├── common/                     # Common utility classes
-│   │   ├── alphabet.py             # Amino acid and 3Di vocabulary definitions
-│   │   ├── foldseek_util.py        # Foldseek calling and parsing utilities
-│   │   └── pdb_parser.py           # PDB coordinate extraction parser
-│   ├── data/                       # Data loading and processing modules
-│   │   ├── collator.py             # PyG batching and dynamic masking logic
-│   │   ├── dataset.py              # PyTorch dataset classes
-│   │   └── graph_builder.py        # KNN graph builder
-│   ├── modeling/                   # Neural network architecture definitions
-│   │   ├── esm_wrapper.py          # Frozen ESM-2 semantic feature extractor
-│   │   ├── fusion.py               # Multi-modal feature fusion module
-│   │   ├── gnn_adapters.py         # GCN/GAT/EGNN adapters for ablation studies
-│   │   ├── gvp_encoder.py          # Core GVP (Geometric Vector Perceptron) network
-│   │   └── struct_mif.py           # Top-level Struct-MIF main model
-│   ├── loss.py                     # Loss function definitions (MaskedMLMLoss)
-│   └── scoring.py                  # Core logic for zero-shot scoring (Log-Likelihood Ratio)
-├── environment.yaml                # Conda cross-platform environment dependencies file
-└── protssn_experiment_plan.json    # Experiment plans and benchmark configuration metadata
-```
+| Script | Purpose |
+| --- | --- |
+| `scripts/3_zero_shot_score.py` | Score an arbitrary variant list for a single PDB |
+| `scripts/6_all_dtm.py` | Sweep all saved checkpoints over the stability benchmarks |
+| `scripts/7_all_gym.py` | Sweep all saved checkpoints over ProteinGym |
+| `scripts/8_visualize_latent.py` | Project learned representations for inspection |
+| `scripts/check_model_integrity.py` | Verify architecture, tensor alignment, and gradients |
+| `scripts/check_data_leakage.py` | Homology scan between pre-training and benchmark sets |
+
+---
+
+## Data availability
+
+- **ProteinGym v1.0** — <https://proteingym.org>
+- **ΔTm / ΔΔG splits** — released with [ProtSSN](https://github.com/ai4protein/ProtSSN)
+- **CATH v4.3.0** — <https://www.cathdb.info>
+- **ProteinGym structures** — AlphaFold2-predicted models from the ProteinGym release
+
+---
 
 ## Pre-trained Weights
 
@@ -239,7 +239,49 @@ To facilitate reproducibility of our ablation experiments, we also provide the w
 
 > **Note:** If you are only interested in running the standard inference or evaluating on the ProteinGym benchmark, downloading the **Main Model** is sufficient.
 
+---
+
+## Project structure
+
+```
+Struct-MIF/
+├── configs/                     # YAML configs (base, training, inference)
+├── data/                        # Raw PDBs, processed graphs, benchmarks
+├── experiments/                 # Checkpoints and training logs
+├── figures/                     # Figures from the paper
+├── scripts/                     # Entry-point scripts (see table above)
+├── src/
+│   ├── common/                  # Alphabets, Foldseek utilities, PDB parser
+│   ├── data/                    # Dataset, collator, graph builder
+│   ├── modeling/                # ESM wrapper, fusion, GVP encoder, GNN adapters
+│   ├── loss.py                  # Masked MLM loss
+│   └── scoring.py               # Masked LLR scoring
+├── environment.yaml
+└── protssn_experiment_plan.json # ProteinGym assay configuration
+```
+
+---
+
+## Reproducibility notes
+
+- **Masking** — ratio 0.15 follows standard BERT/ESM practice: 80% of selected positions receive `<mask>`, 10% are replaced with a random amino acid, 10% are left unchanged.
+- **Frozen encoder** — ESM-2 is kept in eval mode and excluded from the optimizer throughout training.
+- **Tensor alignment** — ESM-2 appends `<cls>` and `<eos>`, so its output has length L+2 while the k-NN graph has L nodes; the semantic tensor is truncated to L during fusion.
+- **3Di extraction** — tokens are produced by `foldseek structureto3didescriptor`; the one-letter alphabet (`dpvliakegshtrfywmcnq`) maps to a 21-entry embedding table with index 0 reserved for padding.
+- **Graph construction** — directed k-NN edges over Cα coordinates (k = 30, self-loops removed).
+
 ## Acknowledgements
 
-Our code is inspired by and built upon several great open-source projects, including [ESM](https://github.com/facebookresearch/esm), [GVP](https://github.com/drorlab/gvp-pytorch), and [Foldseek](https://github.com/steineggerlab/foldseek). We thank the authors for releasing their code.
+This code builds on [ESM](https://github.com/facebookresearch/esm), [GVP](https://github.com/drorlab/gvp-pytorch), and [Foldseek](https://github.com/steineggerlab/foldseek). We thank the authors for releasing their code.
 
+## Citation
+
+```bibtex
+@article{wang2026structmif,
+  title   = {Struct-MIF: Integrating Evolutionary Semantics and
+             Structural Priors for Zero-Shot Mutation Effect Prediction},
+  author  = {Wang, Dong and Zhang, Jin and Lu, Bin and Liu, Qiaoming and Luo, Ximei},
+  journal = {Frontiers of Computer Science},
+  year    = {2026}
+}
+```
